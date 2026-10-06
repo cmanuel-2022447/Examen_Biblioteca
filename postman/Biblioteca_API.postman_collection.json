@@ -1,0 +1,465 @@
+{
+  "info": {
+    "_postman_id": "b1f4a5e2-3c7d-4e8a-9f21-000000000001",
+    "name": "Biblioteca API",
+    "description": "API REST de gestion de biblioteca (Spring Boot 3 + JWT).\n\nOrden de uso:\n1) Login (admin/bibliotecario/lector) -> el token queda guardado automatico en la variable {{token}}.\n2) Usar los demas endpoints; todos envian Authorization: Bearer {{token}}.\n3) El rol definido en cada request es el minimo requerido.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "token", "value": "" },
+    { "key": "libroId", "value": "1" },
+    { "key": "prestamoId", "value": "1" },
+    { "key": "usuarioId", "value": "4" }
+  ],
+  "item": [
+    {
+      "name": "1. Autenticacion",
+      "item": [
+        {
+          "name": "Login ADMIN",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.code === 200);",
+                  "pm.test('Token guardado en {{token}}', () => {",
+                  "  const t = pm.response.json().token;",
+                  "  pm.collectionVariables.set('token', t);",
+                  "  pm.expect(t).to.be.ok;",
+                  "});",
+                  "pm.test('Rol ADMIN', () => pm.response.json().rol === 'ADMIN');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@biblioteca.com\",\n  \"password\": \"Admin123*\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Devuelve token JWT (24h), id, nombre, email, rol y estado."
+          }
+        },
+        {
+          "name": "Login BIBLIOTECARIO",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.code === 200);",
+                  "pm.collectionVariables.set('token', pm.response.json().token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"bibliotecario@biblioteca.com\",\n  \"password\": \"Bibliotecario123*\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login LECTOR",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.code === 200);",
+                  "pm.collectionVariables.set('token', pm.response.json().token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"lector@biblioteca.com\",\n  \"password\": \"Lector123*\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Registrar LECTOR (publico, sin token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.code === 201);",
+                  "pm.test('Rol siempre LECTOR y estado ACTIVO', () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.rol).to.eql('LECTOR');",
+                  "  pm.expect(b.estado).to.eql('ACTIVO');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Ana Prueba\",\n  \"email\": \"ana.prueba@gmail.com\",\n  \"password\": \"Secreta123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "description": "Registro publico. El rol siempre queda LECTOR aunque se envie otro (regla de negocio). Email repetido -> 409."
+          }
+        },
+        {
+          "name": "Login con password incorrecta (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('401 Unauthorized', () => pm.response.code === 401);"]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@biblioteca.com\",\n  \"password\": \"mala\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Sin token (401)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/libros?page=0&size=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "libros"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "5" }
+              ]
+            },
+            "description": "Debe responder 401 con el mensaje del filtro JWT (no la pagina blanca de Spring Security)."
+          }
+        },
+        {
+          "name": "Token invalido/falsificado (401)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "token-falso", "type": "string" }] },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/libros",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "libros"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Libros",
+      "description": "GET: cualquier usuario autenticado. POST/PUT/DELETE: solo ADMIN.",
+      "item": [
+        {
+          "name": "Listar libros (paginado + filtros)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/libros?titulo=&categoria=&page=0&size=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "libros"],
+              "query": [
+                { "key": "titulo", "value": "", "description": "parcial, sin distincion de mayusculas" },
+                { "key": "categoria", "value": "", "description": "parcial" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "5" }
+              ]
+            },
+            "description": "Devuelve Page<LibroResponse> (content, totalElements, totalPages...). page/size opcionales (default 0 y 20)."
+          }
+        },
+        {
+          "name": "Obtener libro por id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/libros/{{libroId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "libros", "{{libroId}}"]
+            },
+            "description": "No existe -> 404 con ErrorResponse {timestamp, status, error, message, path}."
+          }
+        },
+        {
+          "name": "Crear libro (ADMIN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.code === 201);",
+                  "pm.collectionVariables.set('libroId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isbn\": \"978-84-376-0493-0\",\n  \"titulo\": \"Cien anos de soledad\",\n  \"autor\": \"Gabriel Garcia Marquez\",\n  \"categoria\": \"Novela\",\n  \"stockTotal\": 3,\n  \"stockDisponible\": 3\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/libros",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "libros"]
+            },
+            "description": "stockDisponible no puede superar stockTotal. ISBN duplicado o stock invalido -> 409/400."
+          }
+        },
+        {
+          "name": "Actualizar libro (ADMIN)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isbn\": \"978-84-376-0493-0\",\n  \"titulo\": \"Cien anos de soledad (ed. 50 aniversario)\",\n  \"autor\": \"Gabriel Garcia Marquez\",\n  \"categoria\": \"Novela\",\n  \"stockTotal\": 5,\n  \"stockDisponible\": 5\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/libros/{{libroId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "libros", "{{libroId}}"]
+            }
+          }
+        },
+        {
+          "name": "Eliminar libro (ADMIN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 No Content', () => pm.response.code === 204);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/libros/{{libroId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "libros", "{{libroId}}"]
+            },
+            "description": "Con prestamos activos -> 409 (integridad referencial)."
+          }
+        },
+        {
+          "name": "Crear libro con token de LECTOR (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('403 Forbidden', () => pm.response.code === 403);"] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isbn\": \"000-000-000\",\n  \"titulo\": \"No deberia crearse\",\n  \"autor\": \"x\",\n  \"categoria\": \"x\",\n  \"stockTotal\": 1,\n  \"stockDisponible\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/libros",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "libros"]
+            },
+            "description": "Primero hacer Login LECTOR. Si tratas de crear sin token -> 401."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Prestamos",
+      "description": "Crear/devolver/atrasados: ADMIN o BIBLIOTECARIO. mis-prestamos: cualquier autenticado.",
+      "item": [
+        {
+          "name": "Crear prestamo (ADMIN/BIBLIOTECARIO)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.code === 201);",
+                  "pm.test('Estado ACTIVO', () => pm.response.json().estado === 'ACTIVO');",
+                  "pm.collectionVariables.set('prestamoId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": {{usuarioId}},\n  \"libroId\": {{libroId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/prestamos",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "prestamos"]
+            },
+            "description": "Efectos: descuenta 1 del stock del libro, registra fecha esperada (+7 dias) y crea el prestamo.\nReglas que devuelven 409: libro sin stock, usuario sancionado, mas de 3 prestamos activos del lector, libro/usuario inexistentes (404)."
+          }
+        },
+        {
+          "name": "Registrar devolucion (ADMIN/BIBLIOTECARIO)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.code === 200);",
+                  "pm.test('Estado DEVUELTO', () => pm.response.json().estado === 'DEVUELTO');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/prestamos/{{prestamoId}}/devolucion",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "prestamos", "{{prestamoId}}", "devolucion"]
+            },
+            "description": "Suma 1 al stock y marca DEVUELTO. Devolver dos veces -> 409 (regla de negocio)."
+          }
+        },
+        {
+          "name": "Mis prestamos (cualquier rol)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/prestamos/mis-prestamos",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "prestamos", "mis-prestamos"]
+            },
+            "description": "Devuelve los prestamos del usuario del token (no del body)."
+          }
+        },
+        {
+          "name": "Listar atrasados (ADMIN/BIBLIOTECARIO)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/prestamos/atrasados",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "prestamos", "atrasados"]
+            },
+            "description": "Marca como ATRASADO los vencidos no devueltos y los lista."
+          }
+        },
+        {
+          "name": "Crear prestamo con token de LECTOR (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('403 Forbidden', () => pm.response.code === 403);"] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": {{usuarioId}},\n  \"libroId\": {{libroId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/prestamos",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "prestamos"]
+            },
+            "description": "Primero Login LECTOR."
+          }
+        },
+        {
+          "name": "Prestamo con libro sin stock (409)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": {{usuarioId}},\n  \"libroId\": 999999\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/prestamos",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "prestamos"]
+            },
+            "description": "Cambia {{libroId}} por un libro con stockDisponible=0 (o usa id inexistente para ver 404)."
+          }
+        }
+      ]
+    }
+  ]
+}
