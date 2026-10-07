@@ -13,6 +13,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 @Service
 public class LibroService {
 
@@ -49,7 +51,12 @@ public class LibroService {
                 : request.getStockDisponible();
         validarStock(request.getStockTotal(), stockDisponible);
 
-        if (libroRepository.existsByIsbn(isbn)) {
+        Optional<Libro> existente = libroRepository.findByIsbn(isbn);
+        if (existente.isPresent()) {
+            Libro libroExistente = existente.get();
+            if (mismoLibro(libroExistente, request, stockDisponible)) {
+                return LibroResponse.desde(libroExistente);
+            }
             throw new BusinessRuleException("El ISBN ya esta registrado");
         }
 
@@ -111,6 +118,14 @@ public class LibroService {
         }
         return libroRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Libro", "id", id));
+    }
+
+    private boolean mismoLibro(Libro libro, LibroRequest request, Integer stockDisponible) {
+        return libro.getTitulo().equals(request.getTitulo().trim())
+                && libro.getAutor().equals(request.getAutor().trim())
+                && libro.getCategoria().equals(request.getCategoria().trim())
+                && libro.getStockTotal().equals(request.getStockTotal())
+                && libro.getStockDisponible().equals(stockDisponible);
     }
 
     private void validarStock(Integer stockTotal, Integer stockDisponible) {

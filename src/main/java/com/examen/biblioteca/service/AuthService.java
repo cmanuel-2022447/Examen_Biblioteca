@@ -36,6 +36,12 @@ public class AuthService {
         String email = normalizarEmail(request.getEmail());
 
         if (usuarioRepository.existsByEmail(email)) {
+            Usuario registrado = usuarioRepository.findByEmail(email)
+                    .orElseThrow(() -> new BusinessRuleException("El email ya esta registrado"));
+            if (passwordEncoder.matches(request.getPassword(), registrado.getPassword())) {
+                return new AuthResponse(jwtService.generarToken(registrado), registrado.getId(),
+                        registrado.getNombre(), registrado.getEmail(), registrado.getRol(), registrado.getEstado());
+            }
             throw new BusinessRuleException("El email ya esta registrado");
         }
 
