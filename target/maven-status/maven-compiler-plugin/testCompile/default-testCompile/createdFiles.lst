@@ -1,0 +1,6 @@
+com\examen\biblioteca\PrestamoApiTest.class
+com\examen\biblioteca\AuthApiTest.class
+com\examen\biblioteca\LibroApiTest.class
+com\examen\biblioteca\BibliotecaApplicationTests.class
+com\examen\biblioteca\ConcurrenciaTest.class
+com\examen\biblioteca\JwtServiceTest.class

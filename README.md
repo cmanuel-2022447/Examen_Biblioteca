@@ -24,6 +24,7 @@ Lo hice con Spring Boot, MySQL y seguridad con JWT.
 - MySQL 8
 - Maven
 - IntelliJ (lo usé yo) o cualquier editor
+- Git Bash y `jq` (para correr `test-api1.sh`; Git Bash viene con Git for Windows)
 
 ---
 
@@ -47,14 +48,12 @@ mvn spring-boot:run
 O desde IntelliJ directo con el botón de run de la clase `BibliotecaApplication`.
 
 > **Ojo:** si me sale el error *"Port 8080 was already in use"* es porque algo
-> más está usando el puerto. Uso este script que lo cierra y arranca:
+> más está usando el puerto. Lo libero desde PowerShell:
 >
 > ```powershell
-> .\scripts\iniciar-app.ps1
+> $p = Get-NetTCPConnection -LocalPort 8080 -State Listen
+> Stop-Process -Id $p.OwningProcess
 > ```
->
-> También pasa que al empaquetar (`mvn package`) el proyecto solo de ese paso
-> revisa y libera el puerto (eso está en el `pom.xml`).
 
 La API queda en: `http://localhost:8080`
 
@@ -123,7 +122,7 @@ Ejemplo de cuerpo para prestar:
 | 401 | No tiene token o el token no sirve |
 | 403 | Está logueado pero no tiene permiso para eso |
 | 404 | No existe el libro o el usuario |
-| 409 | Rompe una regla (sin stock, ya tiene 3 préstamos, ya devolvió, sancionado) |
+| 409 | Rompe una regla (sin stock, ya tiene 3 préstamos, ya devolvió, sancionado, email o ISBN ya registrado con otros datos) |
 
 ---
 
@@ -137,6 +136,27 @@ mvn test
 
 Son 46 y todas pasan. Incluyen una de concurrencia que mete 2 préstamos al
 mismo tiempo para ver que no se pisa el stock.
+
+---
+
+## Prueba con el script del examen
+
+`test-api1.sh` hace las pruebas funcionales y de estrés contra la API. Se corre
+desde Git Bash con la aplicación ya levantada en el 8080:
+
+```bash
+./test-api1.sh
+```
+
+Lo que revisa:
+
+1. Registro del lector → debe devolver token
+2. Login del admin → token
+3. Crear un libro con rol ADMIN → debe crearlo (con acentos incluidos)
+4. Catálogo de libros
+5. Login del lector
+6. Intentar crear libro con lector → **403 Forbidden**
+7. Estrés: 100 peticiones concurrentes al catálogo → **`100 200`**
 
 ---
 
@@ -163,7 +183,13 @@ src/main/java/com/examen/biblioteca
 ```
 
 Notas mías:
-- No usé Lombok, todo a mano.
+- El `pom.xml` trae Lombok (lo pide el examen), pero el código está escrito a
+  mano, sin anotaciones de Lombok.
+- El registro y la creación de libro son idempotentes: si repito la misma
+  petición con los mismos datos me devuelve el resultado en vez de un error
+  (el 409 es solo si cambian los datos o la contraseña).
+- `JsonEncodingFallbackFilter` acepta cuerpos JSON con acentos que llegan en
+  CP1252 desde Git Bash/curl y los pasa a UTF-8 antes de procesarlos.
 - La clave del JWT está en `application.properties`.
 - El stock se bloquea cuando se hace el préstamo para que dos personas no
   presten el mismo libro al mismo tiempo.
